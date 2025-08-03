@@ -2,7 +2,7 @@
 
 import { Plus, Save, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { saveLeaveNote, updateLeaveNote, getLeaveNoteById, type LeaveNote, type ChecklistItem, type EmergencyContact, type RequestItem } from "@/lib/firestore";
@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 
-export default function CreateNotePage() {
+function CreateNoteContent() {
 	const { user, loading, signInAnonymous, signInWithGoogle } = useAuth();
 	const router = useRouter();
 	const searchParams = useSearchParams();
@@ -574,5 +574,13 @@ export default function CreateNotePage() {
 				</div>
 			</div>
 		</div>
+	);
+}
+
+export default function CreateNotePage() {
+	return (
+		<Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div>読み込み中...</div></div>}>
+			<CreateNoteContent />
+		</Suspense>
 	);
 }

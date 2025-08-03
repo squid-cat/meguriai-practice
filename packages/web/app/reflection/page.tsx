@@ -2,7 +2,7 @@
 
 import { CheckCircle, Lightbulb, RotateCcw, Save, XCircle } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { getLeaveNoteById, saveReflection, getReflectionByNoteId, type LeaveNote, type Reflection } from "@/lib/firestore";
@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 
-export default function ReflectionPage() {
+function ReflectionContent() {
 	const { user, loading, signInAnonymous, signInWithGoogle } = useAuth();
 	const router = useRouter();
 	const searchParams = useSearchParams();
@@ -383,5 +383,13 @@ export default function ReflectionPage() {
 				</div>
 			</div>
 		</div>
+	);
+}
+
+export default function ReflectionPage() {
+	return (
+		<Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div>読み込み中...</div></div>}>
+			<ReflectionContent />
+		</Suspense>
 	);
 }
