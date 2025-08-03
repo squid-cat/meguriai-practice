@@ -12,6 +12,7 @@ import {
 	User,
 } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,55 +24,170 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { apiClient } from "@/utils/api-client";
+
+interface ChecklistItem {
+	id: string;
+	text: string;
+	completed: boolean;
+	sortOrder: number;
+}
+
+interface EmergencyContact {
+	id: string;
+	name: string;
+	relationship: string;
+	phone: string;
+	email: string;
+	sortOrder: number;
+}
+
+interface Request {
+	id: string;
+	person: string;
+	request: string;
+	priority: "high" | "medium" | "low";
+	sortOrder: number;
+}
+
+interface NoteDetail {
+	id: string;
+	title: string;
+	destination: string;
+	departureDate: string;
+	returnDate: string;
+	description: string;
+	status: "draft" | "active" | "completed";
+	isShared: boolean;
+	shareToken: string | null;
+	checklistItems: ChecklistItem[];
+	emergencyContacts: EmergencyContact[];
+	requests: Request[];
+	createdAt: string;
+	updatedAt: string;
+}
 
 export default function NoteViewPage({ params }: { params: { id: string } }) {
-	// Mock data - in real app, this would be fetched based on params.id
-	const note = {
-		id: params.id,
-		title: "沖縄家族旅行",
-		destination: "沖縄",
-		departureDate: "2024-08-15",
-		returnDate: "2024-08-20",
-		description:
-			"家族4人での沖縄旅行。子供たちは初めての沖縄なので楽しみにしています。",
-		status: "active",
-		checklist: [
-			{ id: "1", text: "エアコンの電源を切る", completed: true },
-			{ id: "2", text: "ガスの元栓を確認する", completed: false },
-			{ id: "3", text: "ゴミ出しをする", completed: true },
-			{ id: "4", text: "冷蔵庫の中身を確認", completed: false },
-			{ id: "5", text: "植物の水やりを頼む", completed: false },
-		],
-		emergencyContacts: [
-			{
-				id: "1",
-				name: "田中太郎",
-				relationship: "父親",
-				phone: "090-1234-5678",
-				email: "tanaka@example.com",
-			},
-			{
-				id: "2",
-				name: "管理会社",
-				relationship: "マンション管理",
-				phone: "03-1234-5678",
-				email: "info@management.com",
-			},
-		],
-		requests: [
-			{
-				id: "1",
-				person: "隣人の佐藤さん",
-				request: "郵便受けの確認をお願いします。重要な書類が届く予定です。",
-				priority: "high" as const,
-			},
-			{
-				id: "2",
-				person: "妹",
-				request: "植物の水やりを2日に1回お願いします。",
-				priority: "medium" as const,
-			},
-		],
+	const [note, setNote] = useState<NoteDetail | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+
+	useEffect(() => {
+		const fetchNote = async () => {
+			try {
+				// 将来的にはAPI実装時にこちらを使用
+				// const { data, error } = await apiClient.GET("/api/v1/notes/{id}", {
+				// 	params: { path: { id: params.id } }
+				// });
+				// if (error) {
+				// 	setError("ノートの取得に失敗しました");
+				// 	return;
+				// }
+				// setNote(data.note);
+
+				// 現在はモックデータを使用
+				const mockNote: NoteDetail = {
+					id: params.id,
+					title: "沖縄家族旅行",
+					destination: "沖縄",
+					departureDate: "2024-08-15",
+					returnDate: "2024-08-20",
+					description:
+						"家族4人での沖縄旅行。子供たちは初めての沖縄なので楽しみにしています。",
+					status: "active",
+					isShared: true,
+					shareToken: "share_token_123",
+					checklistItems: [
+						{ id: "1", text: "エアコンの電源を切る", completed: true, sortOrder: 1 },
+						{ id: "2", text: "ガスの元栓を確認する", completed: false, sortOrder: 2 },
+						{ id: "3", text: "ゴミ出しをする", completed: true, sortOrder: 3 },
+						{ id: "4", text: "冷蔵庫の中身を確認", completed: false, sortOrder: 4 },
+						{ id: "5", text: "植物の水やりを頼む", completed: false, sortOrder: 5 },
+					],
+					emergencyContacts: [
+						{
+							id: "1",
+							name: "田中太郎",
+							relationship: "父親",
+							phone: "090-1234-5678",
+							email: "tanaka@example.com",
+							sortOrder: 1,
+						},
+						{
+							id: "2",
+							name: "管理会社",
+							relationship: "マンション管理",
+							phone: "03-1234-5678",
+							email: "info@management.com",
+							sortOrder: 2,
+						},
+					],
+					requests: [
+						{
+							id: "1",
+							person: "隣人の佐藤さん",
+							request: "郵便受けの確認をお願いします。重要な書類が届く予定です。",
+							priority: "high",
+							sortOrder: 1,
+						},
+						{
+							id: "2",
+							person: "妹",
+							request: "植物の水やりを2日に1回お願いします。",
+							priority: "medium",
+							sortOrder: 2,
+						},
+					],
+					createdAt: "2024-08-01T00:00:00Z",
+					updatedAt: "2024-08-10T00:00:00Z",
+				};
+				setNote(mockNote);
+				setError(null);
+			} catch (err) {
+				console.error("Error fetching note:", err);
+				setError("ネットワークエラーが発生しました");
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		fetchNote();
+	}, [params.id]);
+
+	const handleChecklistToggle = async (itemId: string) => {
+		if (!note) return;
+
+		try {
+			// 将来的にはAPI実装時にこちらを使用
+			// const item = note.checklistItems.find(i => i.id === itemId);
+			// if (!item) return;
+			
+			// const { error } = await apiClient.PUT("/api/v1/notes/{noteId}/checklist/{itemId}", {
+			// 	params: { path: { noteId: note.id, itemId } },
+			// 	body: {
+			// 		text: item.text,
+			// 		completed: !item.completed,
+			// 		sortOrder: item.sortOrder
+			// 	}
+			// });
+			// if (error) {
+			// 	console.error("Failed to update checklist item:", error);
+			// 	return;
+			// }
+
+			// 現在はローカル状態更新
+			setNote(prev => {
+				if (!prev) return prev;
+				return {
+					...prev,
+					checklistItems: prev.checklistItems.map(item =>
+						item.id === itemId ? { ...item, completed: !item.completed } : item
+					)
+				};
+			});
+		} catch (err) {
+			console.error("Error updating checklist:", err);
+		}
 	};
 
 	const getPriorityBadge = (priority: string) => {
@@ -87,9 +203,33 @@ export default function NoteViewPage({ params }: { params: { id: string } }) {
 		}
 	};
 
-	const completedCount = note.checklist.filter((item) => item.completed).length;
-	const totalCount = note.checklist.length;
-	const completionRate = Math.round((completedCount / totalCount) * 100);
+	if (loading) {
+		return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<div className="text-center">
+					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+					<p className="text-gray-600">読み込み中...</p>
+				</div>
+			</div>
+		);
+	}
+
+	if (error || !note) {
+		return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<div className="text-center">
+					<p className="text-red-600 mb-4">{error || "ノートが見つかりません"}</p>
+					<Link href="/dashboard">
+						<Button variant="outline">ダッシュボードに戻る</Button>
+					</Link>
+				</div>
+			</div>
+		);
+	}
+
+	const completedCount = note.checklistItems.filter((item) => item.completed).length;
+	const totalCount = note.checklistItems.length;
+	const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
 	return (
 		<div className="min-h-screen bg-gray-50">
@@ -168,9 +308,12 @@ export default function NoteViewPage({ params }: { params: { id: string } }) {
 						</CardHeader>
 						<CardContent>
 							<div className="space-y-3">
-								{note.checklist.map((item) => (
+								{note.checklistItems.map((item) => (
 									<div key={item.id} className="flex items-center space-x-3">
-										<Checkbox checked={item.completed} />
+										<Checkbox 
+											checked={item.completed}
+											onCheckedChange={() => handleChecklistToggle(item.id)}
+										/>
 										<span
 											className={`flex-1 ${item.completed ? "line-through text-gray-500" : ""}`}
 										>
@@ -271,7 +414,7 @@ export default function NoteViewPage({ params }: { params: { id: string } }) {
 								このLeaveNoteは以下のURLで共有できます：
 							</p>
 							<div className="bg-white p-3 rounded-md border border-blue-200 font-mono text-sm">
-								https://leavenote.app/shared/{note.id}
+								{note.shareToken ? `https://leavenote.app/shared/${note.shareToken}` : "共有が無効です"}
 							</div>
 							<p className="text-sm text-blue-700 mt-2">
 								※ パスワード保護や閲覧期限の設定も可能です

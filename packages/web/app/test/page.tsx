@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
+import { apiClient } from "@/utils/api-client";
 
 export default function TestPage() {
 	const [text, setText] = useState("");
@@ -9,34 +10,22 @@ export default function TestPage() {
 		{ text: string; id: string; createdAt: string; updatedAt: string }[]
 	>([]);
 	const [loading, setLoading] = useState(false);
-
-	// モックデータ
-	const mockPosts = [
-		{
-			id: "mock-1",
-			text: "これは最初のテスト投稿です。",
-			createdAt: "2024-01-15T10:30:00Z",
-			updatedAt: "2024-01-15T10:30:00Z",
-		},
-		{
-			id: "mock-2", 
-			text: "2番目のテスト投稿です。\nこれは複数行のテキストです。",
-			createdAt: "2024-01-15T11:45:00Z",
-			updatedAt: "2024-01-15T11:45:00Z",
-		},
-	];
+	const [error, setError] = useState<string | null>(null);
 
 	const getPosts = useCallback(async () => {
-		// API呼び出しをモックデータに置き換え
-		// const { data, error } = await apiClient.GET("/api/test");
-		// if (error) {
-		// 	console.error("Error fetching posts:", error);
-		// 	return;
-		// }
-		// setPosts(data.tests);
-		
-		// モックデータを使用
-		setPosts(mockPosts);
+		try {
+			const { data, error } = await apiClient.GET("/api/test");
+			if (error) {
+				console.error("Error fetching posts:", error);
+				setError("投稿の取得に失敗しました");
+				return;
+			}
+			setPosts(data.tests);
+			setError(null);
+		} catch (err) {
+			console.error("Network error:", err);
+			setError("ネットワークエラーが発生しました");
+		}
 	}, []);
 
 	useEffect(() => {
@@ -46,30 +35,22 @@ export default function TestPage() {
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setLoading(true);
+		setError(null);
 
 		try {
-			// API呼び出しをモックに置き換え
-			// const { error } = await apiClient.POST("/api/test", {
-			// 	body: { text },
-			// });
-			// 
-			// if (error) {
-			// 	throw new Error("API Error");
-			// }
+			const { error } = await apiClient.POST("/api/test", {
+				body: { text },
+			});
+			
+			if (error) {
+				throw new Error("API Error");
+			}
 
-			// モック処理：新しい投稿をリストに追加
-			const newPost = {
-				id: `mock-${Date.now()}`,
-				text: text,
-				createdAt: new Date().toISOString(),
-				updatedAt: new Date().toISOString(),
-			};
-			setPosts(prevPosts => [newPost, ...prevPosts]);
-
-			setText(""); // 送信後にフォームをクリア
-		} catch (error) {
-			console.error("エラー:", error);
-			alert("エラーが発生しました");
+			setText("");
+			await getPosts();
+		} catch (err) {
+			console.error("エラー:", err);
+			setError("投稿の送信に失敗しました");
 		} finally {
 			setLoading(false);
 		}
@@ -89,6 +70,21 @@ export default function TestPage() {
 	return (
 		<div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
 			<h1>テスト画面</h1>
+
+			{error && (
+				<div
+					style={{
+						backgroundColor: "#fee",
+						color: "#d00",
+						padding: "12px",
+						borderRadius: "4px",
+						marginBottom: "16px",
+						border: "1px solid #fcc",
+					}}
+				>
+					{error}
+				</div>
+			)}
 
 			<form onSubmit={handleSubmit}>
 				<div style={{ marginBottom: "16px" }}>
