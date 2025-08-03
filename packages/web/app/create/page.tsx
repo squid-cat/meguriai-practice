@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import Image from "next/image";
 
 interface ChecklistItem {
 	id: string;
@@ -141,6 +142,7 @@ export default function CreateNotePage() {
 			<header className="bg-white border-b">
 				<div className="container mx-auto px-4 py-4 flex items-center justify-between">
 					<Link href="/dashboard" className="flex items-center space-x-2">
+						<Image src="/images/leavenote.png" alt="LeaveNote" width={60} height={40} />
 						<span className="text-2xl font-bold text-blue-600">LeaveNote</span>
 					</Link>
 					<div className="space-x-2">
