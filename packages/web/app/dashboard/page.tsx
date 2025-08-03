@@ -12,7 +12,9 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+
 import { apiClient } from "@/utils/api-client";
+import Image from "next/image";
 
 interface LeaveNote {
 	id: string;
@@ -145,6 +147,7 @@ export default function DashboardPage() {
 			<header className="bg-white border-b">
 				<div className="container mx-auto px-4 py-4 flex items-center justify-between">
 					<Link href="/" className="flex items-center space-x-2">
+						<Image src="/images/leavenote.png" alt="LeaveNote" width={60} height={40} />
 						<span className="text-2xl font-bold text-blue-600">LeaveNote</span>
 					</Link>
 					<Link href="/create">
