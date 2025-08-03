@@ -1,0 +1,23 @@
+# Node.js
+node_modules/
+
+# Next.js build output
+packages/web/.next/
+
+# Hono build output
+packages/api/dist
+
+# Generated OpenAPI schema
+packages/api/openapi.json
+
+# TypeScript
+packages/web/*.tsbuildinfo
+
+# Local env files
+.env
+
+# OS
+.DS_Store
+
+# その他
+*.log 

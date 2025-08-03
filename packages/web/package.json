@@ -1,0 +1,29 @@
+{
+	"name": "web",
+	"version": "1.0.0",
+	"description": "",
+	"private": true,
+	"scripts": {
+		"dev": "next dev",
+		"build": "next build",
+		"start": "next start",
+		"check": "tsc --noEmit",
+		"generate:api": "openapi-typescript ../api/openapi.json -o ./utils/api-types.ts"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"next": "^15.4.4",
+		"openapi-fetch": "^0.13.3",
+		"react": "^19.1.0",
+		"react-dom": "^19.1.0"
+	},
+	"devDependencies": {
+		"@types/node": "^24.1.0",
+		"@types/react": "^19.1.8",
+		"@types/react-dom": "^19.1.6",
+		"openapi-typescript": "^7.5.3",
+		"typescript": "^5.8.3"
+	}
+}
