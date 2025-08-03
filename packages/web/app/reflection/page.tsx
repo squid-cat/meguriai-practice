@@ -2,7 +2,10 @@
 
 import { CheckCircle, Lightbulb, RotateCcw, Save, XCircle } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/lib/auth";
+import { getLeaveNoteById, saveReflection, getReflectionByNoteId, type LeaveNote, type Reflection } from "@/lib/firestore";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -16,6 +19,14 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function ReflectionPage() {
+	const { user, loading, signInAnonymous, signInWithGoogle } = useAuth();
+	const router = useRouter();
+	const searchParams = useSearchParams();
+	const noteId = searchParams.get('noteId');
+	const [saving, setSaving] = useState(false);
+	const [note, setNote] = useState<LeaveNote | null>(null);
+	const [existingReflection, setExistingReflection] = useState<Reflection | null>(null);
+
 	const [reflection, setReflection] = useState({
 		whatWorked: "",
 		whatDidntWork: "",
@@ -23,22 +34,85 @@ export default function ReflectionPage() {
 		nextTimeReminder: "",
 	});
 
-	// Mock completed trip data
-	const tripData = {
+	// Load note and existing reflection
+	useEffect(() => {
+		if (noteId && user) {
+			const loadData = async () => {
+				try {
+					const noteData = await getLeaveNoteById(noteId);
+					if (noteData && noteData.userId === user.uid) {
+						setNote(noteData);
+						
+						// Load existing reflection if any
+						const existingRefl = await getReflectionByNoteId(noteId);
+						if (existingRefl) {
+							setExistingReflection(existingRefl);
+							setReflection({
+								whatWorked: existingRefl.whatWorked,
+								whatDidntWork: existingRefl.whatDidntWork,
+								improvements: existingRefl.improvements,
+								nextTimeReminder: existingRefl.nextTimeReminder,
+							});
+						}
+					}
+				} catch (error) {
+					console.error('Error loading data:', error);
+				}
+			};
+			loadData();
+		}
+	}, [noteId, user]);
+
+	if (loading) {
+		return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<div>読み込み中...</div>
+			</div>
+		);
+	}
+
+	if (!user) {
+		return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<Card className="w-full max-w-md">
+					<CardHeader>
+						<CardTitle>ログインが必要です</CardTitle>
+						<CardDescription>振り返りを作成するにはログインしてください</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<Button onClick={signInWithGoogle} className="w-full">
+							Googleでログイン
+						</Button>
+						<Button onClick={signInAnonymous} variant="outline" className="w-full">
+							ゲストとして利用
+						</Button>
+						<div className="text-center">
+							<Link href="/" className="text-sm text-blue-600 hover:underline">
+								ホームに戻る
+							</Link>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
+
+	// Mock data for demo when no note specified
+	const tripData = note || {
 		title: "沖縄家族旅行",
 		destination: "沖縄",
 		departureDate: "2024-08-15",
 		returnDate: "2024-08-20",
 		checklist: [
-			{ text: "エアコンの電源を切る", completed: true },
-			{ text: "ガスの元栓を確認する", completed: true },
-			{ text: "ゴミ出しをする", completed: true },
-			{ text: "冷蔵庫の中身を確認", completed: false },
-			{ text: "植物の水やりを頼む", completed: true },
+			{ id: "1", text: "エアコンの電源を切る", completed: true },
+			{ id: "2", text: "ガスの元栓を確認する", completed: true },
+			{ id: "3", text: "ゴミ出しをする", completed: true },
+			{ id: "4", text: "冷蔵庫の中身を確認", completed: false },
+			{ id: "5", text: "植物の水やりを頼む", completed: true },
 		],
 		requests: [
-			{ person: "隣人の佐藤さん", request: "郵便受けの確認", completed: true },
-			{ person: "妹", request: "植物の水やり", completed: true },
+			{ id: "1", person: "隣人の佐藤さん", request: "郵便受けの確認", completed: true },
+			{ id: "2", person: "妹", request: "植物の水やり", completed: true },
 		],
 	};
 
@@ -46,7 +120,30 @@ export default function ReflectionPage() {
 		(item) => item.completed,
 	).length;
 	const totalTasks = tripData.checklist.length;
-	const completionRate = Math.round((completedTasks / totalTasks) * 100);
+	const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+	const handleSave = async () => {
+		if (!user) return;
+
+		setSaving(true);
+		try {
+			await saveReflection({
+				noteId: noteId || 'demo',
+				userId: user.uid,
+				...reflection,
+			});
+			
+			alert('振り返りを保存しました');
+			if (noteId) {
+				router.push('/dashboard');
+			}
+		} catch (error) {
+			console.error('Save error:', error);
+			alert('保存に失敗しました');
+		} finally {
+			setSaving(false);
+		}
+	};
 
 	return (
 		<div className="min-h-screen bg-gray-50">
@@ -56,9 +153,9 @@ export default function ReflectionPage() {
 					<Link href="/dashboard" className="flex items-center space-x-2">
 						<span className="text-2xl font-bold text-blue-600">LeaveNote</span>
 					</Link>
-					<Button>
+					<Button onClick={handleSave} disabled={saving}>
 						<Save className="h-4 w-4 mr-2" />
-						振り返りを保存
+						{saving ? '保存中...' : '振り返りを保存'}
 					</Button>
 				</div>
 			</header>
@@ -263,10 +360,12 @@ export default function ReflectionPage() {
 										<li>• お願いメモのテンプレート</li>
 									</ul>
 								</div>
-								<Button className="w-full">
-									<Save className="h-4 w-4 mr-2" />
-									「My LeaveNote テンプレート」として保存
-								</Button>
+								<Link href="/create">
+									<Button className="w-full">
+										<Save className="h-4 w-4 mr-2" />
+										新しいLeaveNoteを作成
+									</Button>
+								</Link>
 							</div>
 						</CardContent>
 					</Card>
@@ -276,9 +375,9 @@ export default function ReflectionPage() {
 						<Link href="/dashboard">
 							<Button variant="outline">後で振り返る</Button>
 						</Link>
-						<Button>
+						<Button onClick={handleSave} disabled={saving}>
 							<Save className="h-4 w-4 mr-2" />
-							振り返りを保存
+							{saving ? '保存中...' : '振り返りを保存'}
 						</Button>
 					</div>
 				</div>

@@ -10,6 +10,8 @@ import {
 	Phone,
 	User,
 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { getLeaveNoteById, type LeaveNote } from "@/lib/firestore";
 import { Badge } from "@/components/ui/badge";
 import {
 	Card,
@@ -21,54 +23,44 @@ import {
 import { Separator } from "@/components/ui/separator";
 
 export default function SharedNotePage({ params }: { params: { id: string } }) {
-	// Mock shared note data
-	const note = {
-		id: params.id,
-		title: "沖縄家族旅行",
-		destination: "沖縄",
-		departureDate: "2024-08-15",
-		returnDate: "2024-08-20",
-		description:
-			"家族4人での沖縄旅行。子供たちは初めての沖縄なので楽しみにしています。",
-		owner: "田中花子",
-		checklist: [
-			{ id: "1", text: "エアコンの電源を切る", completed: true },
-			{ id: "2", text: "ガスの元栓を確認する", completed: false },
-			{ id: "3", text: "ゴミ出しをする", completed: true },
-			{ id: "4", text: "冷蔵庫の中身を確認", completed: false },
-			{ id: "5", text: "植物の水やりを頼む", completed: false },
-		],
-		emergencyContacts: [
-			{
-				id: "1",
-				name: "田中太郎",
-				relationship: "父親",
-				phone: "090-1234-5678",
-				email: "tanaka@example.com",
-			},
-			{
-				id: "2",
-				name: "管理会社",
-				relationship: "マンション管理",
-				phone: "03-1234-5678",
-				email: "info@management.com",
-			},
-		],
-		requests: [
-			{
-				id: "1",
-				person: "隣人の佐藤さん",
-				request: "郵便受けの確認をお願いします。重要な書類が届く予定です。",
-				priority: "high" as const,
-			},
-			{
-				id: "2",
-				person: "妹",
-				request: "植物の水やりを2日に1回お願いします。",
-				priority: "medium" as const,
-			},
-		],
-	};
+	const [note, setNote] = useState<LeaveNote | null>(null);
+	const [loading, setLoading] = useState(true);
+
+	useEffect(() => {
+		const loadNote = async () => {
+			try {
+				const noteData = await getLeaveNoteById(params.id);
+				setNote(noteData);
+			} catch (error) {
+				console.error('Error loading shared note:', error);
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		loadNote();
+	}, [params.id]);
+
+	if (loading) {
+		return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<div>読み込み中...</div>
+			</div>
+		);
+	}
+
+	if (!note) {
+		return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<Card className="w-full max-w-md">
+					<CardHeader>
+						<CardTitle>ノートが見つかりません</CardTitle>
+						<CardDescription>指定されたノートが存在しないか、共有が無効になっています</CardDescription>
+					</CardHeader>
+				</Card>
+			</div>
+		);
+	}
 
 	const getPriorityBadge = (priority: string) => {
 		switch (priority) {
@@ -85,6 +77,9 @@ export default function SharedNotePage({ params }: { params: { id: string } }) {
 
 	const completedCount = note.checklist.filter((item) => item.completed).length;
 	const totalCount = note.checklist.length;
+
+	// Determine owner name (in real app, this would come from user data)
+	const ownerName = "作成者";
 
 	return (
 		<div className="min-h-screen bg-gray-50">
@@ -107,7 +102,7 @@ export default function SharedNotePage({ params }: { params: { id: string } }) {
 					<div className="flex items-center space-x-6 text-gray-600 mb-4">
 						<div className="flex items-center">
 							<User className="h-4 w-4 mr-1" />
-							{note.owner}さんのLeaveNote
+							{ownerName}さんのLeaveNote
 						</div>
 						<div className="flex items-center">
 							<MapPin className="h-4 w-4 mr-1" />
@@ -132,7 +127,7 @@ export default function SharedNotePage({ params }: { params: { id: string } }) {
 							<div className="flex items-center">
 								<Clock className="h-5 w-5 text-yellow-600 mr-2" />
 								<span className="font-medium text-yellow-800">
-									{note.owner}さんは現在旅行中です（{note.departureDate} 〜{" "}
+									{ownerName}さんは現在旅行中です（{note.departureDate} 〜{" "}
 									{note.returnDate}）
 								</span>
 							</div>
@@ -155,7 +150,7 @@ export default function SharedNotePage({ params }: { params: { id: string } }) {
 								<div
 									className="bg-blue-600 h-2 rounded-full transition-all duration-300"
 									style={{
-										width: `${Math.round((completedCount / totalCount) * 100)}%`,
+										width: `${totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0}%`,
 									}}
 								></div>
 							</div>
@@ -220,7 +215,7 @@ export default function SharedNotePage({ params }: { params: { id: string } }) {
 						<CardHeader>
 							<CardTitle>あなたへのお願い</CardTitle>
 							<CardDescription>
-								{note.owner}さんからのお願い事項です
+								{ownerName}さんからのお願い事項です
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
@@ -248,7 +243,7 @@ export default function SharedNotePage({ params }: { params: { id: string } }) {
 						<CardHeader>
 							<CardTitle>出発前チェックリスト（参考）</CardTitle>
 							<CardDescription>
-								{note.owner}さんが準備していた項目です
+								{ownerName}さんが準備していた項目です
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
@@ -278,7 +273,7 @@ export default function SharedNotePage({ params }: { params: { id: string } }) {
 					<Card className="bg-blue-50 border-blue-200">
 						<CardContent className="pt-6 text-center">
 							<p className="text-blue-800 mb-2">
-								このLeaveNoteは{note.owner}
+								このLeaveNoteは{ownerName}
 								さんが安心して旅行を楽しむために作成されました。
 							</p>
 							<p className="text-sm text-blue-600">

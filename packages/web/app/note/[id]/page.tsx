@@ -12,6 +12,9 @@ import {
 	User,
 } from "lucide-react";
 import Link from "next/link";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/auth";
+import { getLeaveNoteById, updateLeaveNote, type LeaveNote } from "@/lib/firestore";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,53 +28,48 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 
 export default function NoteViewPage({ params }: { params: { id: string } }) {
-	// Mock data - in real app, this would be fetched based on params.id
-	const note = {
-		id: params.id,
-		title: "沖縄家族旅行",
-		destination: "沖縄",
-		departureDate: "2024-08-15",
-		returnDate: "2024-08-20",
-		description:
-			"家族4人での沖縄旅行。子供たちは初めての沖縄なので楽しみにしています。",
-		status: "active",
-		checklist: [
-			{ id: "1", text: "エアコンの電源を切る", completed: true },
-			{ id: "2", text: "ガスの元栓を確認する", completed: false },
-			{ id: "3", text: "ゴミ出しをする", completed: true },
-			{ id: "4", text: "冷蔵庫の中身を確認", completed: false },
-			{ id: "5", text: "植物の水やりを頼む", completed: false },
-		],
-		emergencyContacts: [
-			{
-				id: "1",
-				name: "田中太郎",
-				relationship: "父親",
-				phone: "090-1234-5678",
-				email: "tanaka@example.com",
-			},
-			{
-				id: "2",
-				name: "管理会社",
-				relationship: "マンション管理",
-				phone: "03-1234-5678",
-				email: "info@management.com",
-			},
-		],
-		requests: [
-			{
-				id: "1",
-				person: "隣人の佐藤さん",
-				request: "郵便受けの確認をお願いします。重要な書類が届く予定です。",
-				priority: "high" as const,
-			},
-			{
-				id: "2",
-				person: "妹",
-				request: "植物の水やりを2日に1回お願いします。",
-				priority: "medium" as const,
-			},
-		],
+	const { user, loading } = useAuth();
+	const [note, setNote] = useState<LeaveNote | null>(null);
+	const [loadingNote, setLoadingNote] = useState(true);
+
+	useEffect(() => {
+		const loadNote = async () => {
+			try {
+				const noteData = await getLeaveNoteById(params.id);
+				setNote(noteData);
+			} catch (error) {
+				console.error('Error loading note:', error);
+			} finally {
+				setLoadingNote(false);
+			}
+		};
+
+		loadNote();
+	}, [params.id]);
+
+	const handleChecklistToggle = async (itemId: string) => {
+		if (!note || !user || note.userId !== user.uid) return;
+
+		const updatedChecklist = note.checklist.map(item =>
+			item.id === itemId ? { ...item, completed: !item.completed } : item
+		);
+
+		const updatedNote = { ...note, checklist: updatedChecklist };
+		setNote(updatedNote);
+
+		try {
+			await updateLeaveNote(params.id, { checklist: updatedChecklist });
+		} catch (error) {
+			console.error('Error updating checklist:', error);
+			// Revert on error
+			setNote(note);
+		}
+	};
+
+	const handleShare = () => {
+		const shareUrl = `${window.location.origin}/shared/${params.id}`;
+		navigator.clipboard.writeText(shareUrl);
+		alert('共有URLをクリップボードにコピーしました');
 	};
 
 	const getPriorityBadge = (priority: string) => {
@@ -87,9 +85,53 @@ export default function NoteViewPage({ params }: { params: { id: string } }) {
 		}
 	};
 
+	if (loading || loadingNote) {
+		return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<div>読み込み中...</div>
+			</div>
+		);
+	}
+
+	if (!note) {
+		return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<Card className="w-full max-w-md">
+					<CardHeader>
+						<CardTitle>ノートが見つかりません</CardTitle>
+						<CardDescription>指定されたノートが存在しないか、アクセス権限がありません</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<Link href="/dashboard">
+							<Button className="w-full">ダッシュボードに戻る</Button>
+						</Link>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
+
+	if (user && note.userId !== user.uid) {
+		return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<Card className="w-full max-w-md">
+					<CardHeader>
+						<CardTitle>アクセス権限がありません</CardTitle>
+						<CardDescription>このノートにアクセスする権限がありません</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<Link href="/dashboard">
+							<Button className="w-full">ダッシュボードに戻る</Button>
+						</Link>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
+
 	const completedCount = note.checklist.filter((item) => item.completed).length;
 	const totalCount = note.checklist.length;
-	const completionRate = Math.round((completedCount / totalCount) * 100);
+	const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
 	return (
 		<div className="min-h-screen bg-gray-50">
@@ -100,15 +142,17 @@ export default function NoteViewPage({ params }: { params: { id: string } }) {
 						<span className="text-2xl font-bold text-blue-600">LeaveNote</span>
 					</Link>
 					<div className="space-x-2">
-						<Button variant="outline">
+						<Button variant="outline" onClick={() => window.print()}>
 							<Download className="h-4 w-4 mr-2" />
 							PDF出力
 						</Button>
-						<Button variant="outline">
-							<Edit className="h-4 w-4 mr-2" />
-							編集
-						</Button>
-						<Button>
+						<Link href={`/create?edit=${note.id}`}>
+							<Button variant="outline">
+								<Edit className="h-4 w-4 mr-2" />
+								編集
+							</Button>
+						</Link>
+						<Button onClick={handleShare}>
 							<Share2 className="h-4 w-4 mr-2" />
 							共有
 						</Button>
@@ -121,7 +165,9 @@ export default function NoteViewPage({ params }: { params: { id: string } }) {
 				<div className="mb-8">
 					<div className="flex items-center justify-between mb-4">
 						<h1 className="text-3xl font-bold text-gray-900">{note.title}</h1>
-						<Badge variant="default">アクティブ</Badge>
+						<Badge variant={note.status === 'active' ? 'default' : note.status === 'draft' ? 'secondary' : 'outline'}>
+							{note.status === 'active' ? 'アクティブ' : note.status === 'draft' ? '下書き' : '完了'}
+						</Badge>
 					</div>
 					<div className="flex items-center space-x-6 text-gray-600">
 						<div className="flex items-center">
@@ -170,7 +216,11 @@ export default function NoteViewPage({ params }: { params: { id: string } }) {
 							<div className="space-y-3">
 								{note.checklist.map((item) => (
 									<div key={item.id} className="flex items-center space-x-3">
-										<Checkbox checked={item.completed} />
+										<Checkbox 
+											checked={item.completed}
+											onCheckedChange={() => handleChecklistToggle(item.id)}
+											disabled={!user || note.userId !== user.uid}
+										/>
 										<span
 											className={`flex-1 ${item.completed ? "line-through text-gray-500" : ""}`}
 										>
@@ -271,10 +321,10 @@ export default function NoteViewPage({ params }: { params: { id: string } }) {
 								このLeaveNoteは以下のURLで共有できます：
 							</p>
 							<div className="bg-white p-3 rounded-md border border-blue-200 font-mono text-sm">
-								https://leavenote.app/shared/{note.id}
+								{typeof window !== 'undefined' && `${window.location.origin}/shared/${note.id}`}
 							</div>
 							<p className="text-sm text-blue-700 mt-2">
-								※ パスワード保護や閲覧期限の設定も可能です
+								※ 共有URLをコピーするには「共有」ボタンをクリックしてください
 							</p>
 						</CardContent>
 					</Card>

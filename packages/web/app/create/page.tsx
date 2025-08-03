@@ -2,7 +2,10 @@
 
 import { Plus, Save, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/lib/auth";
+import { saveLeaveNote, updateLeaveNote, getLeaveNoteById, type LeaveNote, type ChecklistItem, type EmergencyContact, type RequestItem } from "@/lib/firestore";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -17,28 +20,13 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 
-interface ChecklistItem {
-	id: string;
-	text: string;
-	completed: boolean;
-}
-
-interface EmergencyContact {
-	id: string;
-	name: string;
-	relationship: string;
-	phone: string;
-	email: string;
-}
-
-interface RequestItem {
-	id: string;
-	person: string;
-	request: string;
-	priority: "low" | "medium" | "high";
-}
-
 export default function CreateNotePage() {
+	const { user, loading, signInAnonymous, signInWithGoogle } = useAuth();
+	const router = useRouter();
+	const searchParams = useSearchParams();
+	const editId = searchParams.get('edit');
+	const [saving, setSaving] = useState(false);
+
 	const [basicInfo, setBasicInfo] = useState({
 		title: "",
 		destination: "",
@@ -53,13 +41,69 @@ export default function CreateNotePage() {
 		{ id: "3", text: "ゴミ出しをする", completed: false },
 	]);
 
-	const [emergencyContacts, setEmergencyContacts] = useState<
-		EmergencyContact[]
-	>([{ id: "1", name: "", relationship: "", phone: "", email: "" }]);
+	const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([
+		{ id: "1", name: "", relationship: "", phone: "", email: "" }
+	]);
 
 	const [requests, setRequests] = useState<RequestItem[]>([
 		{ id: "1", person: "", request: "", priority: "medium" },
 	]);
+
+	// Load note for editing
+	useEffect(() => {
+		if (editId && user) {
+			const loadNote = async () => {
+				const note = await getLeaveNoteById(editId);
+				if (note && note.userId === user.uid) {
+					setBasicInfo({
+						title: note.title,
+						destination: note.destination,
+						departureDate: note.departureDate,
+						returnDate: note.returnDate,
+						description: note.description,
+					});
+					setChecklist(note.checklist);
+					setEmergencyContacts(note.emergencyContacts);
+					setRequests(note.requests);
+				}
+			};
+			loadNote();
+		}
+	}, [editId, user]);
+
+	if (loading) {
+		return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<div>読み込み中...</div>
+			</div>
+		);
+	}
+
+	if (!user) {
+		return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<Card className="w-full max-w-md">
+					<CardHeader>
+						<CardTitle>ログインが必要です</CardTitle>
+						<CardDescription>ノートを作成するにはログインしてください</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<Button onClick={signInWithGoogle} className="w-full">
+							Googleでログイン
+						</Button>
+						<Button onClick={signInAnonymous} variant="outline" className="w-full">
+							ゲストとして利用
+						</Button>
+						<div className="text-center">
+							<Link href="/" className="text-sm text-blue-600 hover:underline">
+								ホームに戻る
+							</Link>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
 
 	const addChecklistItem = () => {
 		const newItem: ChecklistItem = {
@@ -135,6 +179,40 @@ export default function CreateNotePage() {
 		);
 	};
 
+	const handleSave = async (isDraft = true) => {
+		if (!basicInfo.title.trim()) {
+			alert('タイトルを入力してください');
+			return;
+		}
+
+		setSaving(true);
+		try {
+			const noteData = {
+				...basicInfo,
+				status: isDraft ? 'draft' as const : 'active' as const,
+				userId: user.uid,
+				checklist,
+				emergencyContacts,
+				requests,
+			};
+
+			if (editId) {
+				await updateLeaveNote(editId, noteData);
+			} else {
+				await saveLeaveNote(noteData);
+			}
+
+			router.push('/dashboard');
+		} catch (error) {
+			console.error('Save error:', error);
+			alert('保存に失敗しました');
+		} finally {
+			setSaving(false);
+		}
+	};
+
+	const handleShareSave = () => handleSave(false);
+
 	return (
 		<div className="min-h-screen bg-gray-50">
 			{/* Header */}
@@ -144,13 +222,17 @@ export default function CreateNotePage() {
 						<span className="text-2xl font-bold text-blue-600">LeaveNote</span>
 					</Link>
 					<div className="space-x-2">
-						<Button variant="outline">
+						<Button 
+							variant="outline" 
+							onClick={() => handleSave(true)}
+							disabled={saving}
+						>
 							<Save className="h-4 w-4 mr-2" />
-							下書き保存
+							{saving ? '保存中...' : '下書き保存'}
 						</Button>
-						<Button>
+						<Button onClick={handleShareSave} disabled={saving}>
 							<Share2 className="h-4 w-4 mr-2" />
-							作成して共有
+							{editId ? '更新して共有' : '作成して共有'}
 						</Button>
 					</div>
 				</div>
@@ -159,7 +241,7 @@ export default function CreateNotePage() {
 			<div className="container mx-auto px-4 py-8 max-w-4xl">
 				<div className="mb-8">
 					<h1 className="text-3xl font-bold text-gray-900 mb-2">
-						新しいLeaveNote
+						{editId ? 'LeaveNoteを編集' : '新しいLeaveNote'}
 					</h1>
 					<p className="text-gray-600">
 						旅行前の準備と緊急時の情報をまとめましょう
@@ -476,13 +558,17 @@ export default function CreateNotePage() {
 						<Link href="/dashboard">
 							<Button variant="outline">キャンセル</Button>
 						</Link>
-						<Button variant="outline">
+						<Button 
+							variant="outline" 
+							onClick={() => handleSave(true)}
+							disabled={saving}
+						>
 							<Save className="h-4 w-4 mr-2" />
-							下書き保存
+							{saving ? '保存中...' : '下書き保存'}
 						</Button>
-						<Button>
+						<Button onClick={handleShareSave} disabled={saving}>
 							<Share2 className="h-4 w-4 mr-2" />
-							作成して共有
+							{editId ? '更新して共有' : '作成して共有'}
 						</Button>
 					</div>
 				</div>

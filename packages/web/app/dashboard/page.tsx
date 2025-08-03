@@ -2,7 +2,9 @@
 
 import { Calendar, Edit, Eye, Plus, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/auth";
+import { getUserLeaveNotes, deleteLeaveNote, subscribeToUserNotes, type LeaveNote } from "@/lib/firestore";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,50 +15,75 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 
-interface LeaveNote {
-	id: string;
-	title: string;
-	destination: string;
-	departureDate: string;
-	returnDate: string;
-	status: "draft" | "active" | "completed";
-	sharedWith: number;
-	lastUpdated: string;
-}
-
 export default function DashboardPage() {
-	const [notes] = useState<LeaveNote[]>([
-		{
-			id: "1",
-			title: "沖縄家族旅行",
-			destination: "沖縄",
-			departureDate: "2024-08-15",
-			returnDate: "2024-08-20",
-			status: "active",
-			sharedWith: 3,
-			lastUpdated: "2024-08-10",
-		},
-		{
-			id: "2",
-			title: "実家帰省",
-			destination: "大阪",
-			departureDate: "2024-09-01",
-			returnDate: "2024-09-05",
-			status: "draft",
-			sharedWith: 1,
-			lastUpdated: "2024-08-05",
-		},
-		{
-			id: "3",
-			title: "北海道出張",
-			destination: "札幌",
-			departureDate: "2024-07-20",
-			returnDate: "2024-07-25",
-			status: "completed",
-			sharedWith: 2,
-			lastUpdated: "2024-07-26",
-		},
-	]);
+	const { user, loading, signInAnonymous, signInWithGoogle } = useAuth();
+	const [notes, setNotes] = useState<LeaveNote[]>([]);
+	const [loadingNotes, setLoadingNotes] = useState(true);
+
+	useEffect(() => {
+		if (!user) {
+			setLoadingNotes(false);
+			return;
+		}
+
+		const unsubscribe = subscribeToUserNotes(user.uid, (userNotes) => {
+			setNotes(userNotes);
+			setLoadingNotes(false);
+		});
+
+		return () => unsubscribe();
+	}, [user]);
+
+	const handleDeleteNote = async (id: string) => {
+		if (confirm('このノートを削除しますか？')) {
+			try {
+				await deleteLeaveNote(id);
+			} catch (error) {
+				console.error('Delete error:', error);
+				alert('削除に失敗しました');
+			}
+		}
+	};
+
+	const handleShare = (noteId: string) => {
+		const shareUrl = `${window.location.origin}/shared/${noteId}`;
+		navigator.clipboard.writeText(shareUrl);
+		alert('共有URLをクリップボードにコピーしました');
+	};
+
+	if (loading) {
+		return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<div>読み込み中...</div>
+			</div>
+		);
+	}
+
+	if (!user) {
+		return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<Card className="w-full max-w-md">
+					<CardHeader>
+						<CardTitle>ログインが必要です</CardTitle>
+						<CardDescription>ダッシュボードを利用するにはログインしてください</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<Button onClick={signInWithGoogle} className="w-full">
+							Googleでログイン
+						</Button>
+						<Button onClick={signInAnonymous} variant="outline" className="w-full">
+							ゲストとして利用
+						</Button>
+						<div className="text-center">
+							<Link href="/" className="text-sm text-blue-600 hover:underline">
+								ホームに戻る
+							</Link>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
 
 	const getStatusBadge = (status: string) => {
 		switch (status) {
@@ -128,7 +155,7 @@ export default function DashboardPage() {
 						</CardHeader>
 						<CardContent>
 							<div className="text-2xl font-bold text-green-600">
-								{notes.reduce((sum, n) => sum + n.sharedWith, 0)}
+								{notes.reduce((sum, n) => sum + (n.sharedWith || 0), 0)}
 							</div>
 						</CardContent>
 					</Card>
@@ -154,19 +181,30 @@ export default function DashboardPage() {
 										</CardDescription>
 									</div>
 									<div className="flex space-x-2">
-										<Button variant="ghost" size="sm">
-											<Eye className="h-4 w-4" />
-										</Button>
-										<Button variant="ghost" size="sm">
-											<Edit className="h-4 w-4" />
-										</Button>
-										<Button variant="ghost" size="sm">
+										<Link href={`/note/${note.id}`}>
+											<Button variant="ghost" size="sm" title="表示">
+												<Eye className="h-4 w-4" />
+											</Button>
+										</Link>
+										<Link href={`/create?edit=${note.id}`}>
+											<Button variant="ghost" size="sm" title="編集">
+												<Edit className="h-4 w-4" />
+											</Button>
+										</Link>
+										<Button 
+											variant="ghost" 
+											size="sm" 
+											title="共有"
+											onClick={() => handleShare(note.id!)}
+										>
 											<Share2 className="h-4 w-4" />
 										</Button>
 										<Button
 											variant="ghost"
 											size="sm"
+											title="削除"
 											className="text-red-600 hover:text-red-700"
+											onClick={() => handleDeleteNote(note.id!)}
 										>
 											<Trash2 className="h-4 w-4" />
 										</Button>
@@ -178,11 +216,11 @@ export default function DashboardPage() {
 									<div className="flex items-center space-x-4">
 										<span className="flex items-center">
 											<Share2 className="h-4 w-4 mr-1" />
-											{note.sharedWith}人と共有
+											{note.sharedWith || 0}人と共有
 										</span>
 										<span className="flex items-center">
 											<Calendar className="h-4 w-4 mr-1" />
-											最終更新: {note.lastUpdated}
+											最終更新: {note.updatedAt ? new Date(note.updatedAt.toDate()).toLocaleDateString('ja-JP') : '不明'}
 										</span>
 									</div>
 									<Link href={`/note/${note.id}`}>
