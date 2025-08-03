@@ -19,3 +19,166 @@ model Test {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 }
+
+model User {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()"))
+  firebaseUid String   @unique @map("firebase_uid")
+  name        String
+  email       String   @unique
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  notes     Note[]
+  templates Template[]
+}
+
+model Note {
+  id            String       @id @default(dbgenerated("uuid_generate_v4()"))
+  title         String
+  destination   String
+  departureDate DateTime     @map("departure_date") @db.Date()
+  returnDate    DateTime     @map("return_date") @db.Date()
+  description   String?
+  status        NoteStatus   @default(draft)
+  isShared      Boolean      @default(false) @map("is_shared")
+  shareToken    String?      @unique @map("share_token")
+  userId        String       @map("user_id")
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz()
+
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checklistItems    ChecklistItem[]
+  emergencyContacts EmergencyContact[]
+  requests          Request[]
+  reflection        Reflection?
+
+  @@index([userId])
+  @@index([shareToken])
+}
+
+model ChecklistItem {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()"))
+  text      String
+  completed Boolean  @default(false)
+  sortOrder Int      @map("sort_order")
+  noteId    String   @map("note_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+}
+
+model EmergencyContact {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()"))
+  name         String
+  relationship String
+  phone        String?
+  email        String?
+  sortOrder    Int      @map("sort_order")
+  noteId       String   @map("note_id")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+}
+
+model Request {
+  id        String          @id @default(dbgenerated("uuid_generate_v4()"))
+  person    String
+  request   String
+  priority  RequestPriority
+  sortOrder Int             @map("sort_order")
+  noteId    String          @map("note_id")
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime        @updatedAt @map("updated_at") @db.Timestamptz()
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+}
+
+model Reflection {
+  id               String   @id @default(dbgenerated("uuid_generate_v4()"))
+  whatWorked       String   @map("what_worked")
+  whatDidntWork    String   @map("what_didnt_work")
+  improvements     String
+  nextTimeReminder String   @map("next_time_reminder")
+  noteId           String   @unique @map("note_id")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+}
+
+model Template {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()"))
+  name        String
+  description String?
+  userId      String   @map("user_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  user              User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checklistTemplate ChecklistTemplate[]
+  contactsTemplate  EmergencyContactTemplate[]
+  requestsTemplate  RequestTemplate[]
+
+  @@index([userId])
+}
+
+model ChecklistTemplate {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()"))
+  text       String
+  sortOrder  Int      @map("sort_order")
+  templateId String   @map("template_id")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  template Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+}
+
+model EmergencyContactTemplate {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()"))
+  name         String
+  relationship String
+  phone        String?
+  email        String?
+  sortOrder    Int      @map("sort_order")
+  templateId   String   @map("template_id")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  template Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+}
+
+model RequestTemplate {
+  id         String          @id @default(dbgenerated("uuid_generate_v4()"))
+  person     String
+  request    String
+  priority   RequestPriority
+  sortOrder  Int             @map("sort_order")
+  templateId String          @map("template_id")
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz()
+
+  template Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+}
+
+enum NoteStatus {
+  draft
+  active
+  completed
+}
+
+enum RequestPriority {
+  high
+  medium
+  low
+}
