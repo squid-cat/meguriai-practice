@@ -2,7 +2,6 @@
 
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
-import { apiClient } from "@/utils/api-client";
 
 export default function TestPage() {
 	const [text, setText] = useState("");
@@ -11,13 +10,33 @@ export default function TestPage() {
 	>([]);
 	const [loading, setLoading] = useState(false);
 
+	// モックデータ
+	const mockPosts = [
+		{
+			id: "mock-1",
+			text: "これは最初のテスト投稿です。",
+			createdAt: "2024-01-15T10:30:00Z",
+			updatedAt: "2024-01-15T10:30:00Z",
+		},
+		{
+			id: "mock-2", 
+			text: "2番目のテスト投稿です。\nこれは複数行のテキストです。",
+			createdAt: "2024-01-15T11:45:00Z",
+			updatedAt: "2024-01-15T11:45:00Z",
+		},
+	];
+
 	const getPosts = useCallback(async () => {
-		const { data, error } = await apiClient.GET("/api/test");
-		if (error) {
-			console.error("Error fetching posts:", error);
-			return;
-		}
-		setPosts(data.tests);
+		// API呼び出しをモックデータに置き換え
+		// const { data, error } = await apiClient.GET("/api/test");
+		// if (error) {
+		// 	console.error("Error fetching posts:", error);
+		// 	return;
+		// }
+		// setPosts(data.tests);
+		
+		// モックデータを使用
+		setPosts(mockPosts);
 	}, []);
 
 	useEffect(() => {
@@ -29,16 +48,25 @@ export default function TestPage() {
 		setLoading(true);
 
 		try {
-			const { error } = await apiClient.POST("/api/test", {
-				body: { text },
-			});
+			// API呼び出しをモックに置き換え
+			// const { error } = await apiClient.POST("/api/test", {
+			// 	body: { text },
+			// });
+			// 
+			// if (error) {
+			// 	throw new Error("API Error");
+			// }
 
-			if (error) {
-				throw new Error("API Error");
-			}
+			// モック処理：新しい投稿をリストに追加
+			const newPost = {
+				id: `mock-${Date.now()}`,
+				text: text,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+			};
+			setPosts(prevPosts => [newPost, ...prevPosts]);
 
 			setText(""); // 送信後にフォームをクリア
-			getPosts();
 		} catch (error) {
 			console.error("エラー:", error);
 			alert("エラーが発生しました");
