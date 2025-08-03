@@ -7,6 +7,7 @@ import {
 	Shield,
 	Users,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +25,7 @@ export default function HomePage() {
 			<header className="border-b bg-white/80 backdrop-blur-sm">
 				<div className="container mx-auto px-4 py-4 flex items-center justify-between">
 					<div className="flex items-center space-x-2">
-						<Plane className="h-8 w-8 text-blue-600" />
+						<Image src="/images/leavenote.png" alt="LeaveNote" width={60} height={40} />
 						<h1 className="text-2xl font-bold text-gray-900">LeaveNote</h1>
 						<span className="text-sm text-gray-500">リーブノート</span>
 					</div>
