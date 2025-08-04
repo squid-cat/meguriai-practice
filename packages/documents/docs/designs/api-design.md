@@ -117,7 +117,7 @@ app.use('/api/v1/protected/*', authMiddleware);
 }
 ```
 
-### GET /api/v1/notes/\{id\}
+### GET /api/v1/notes/`{id}`
 **概要**: ノート詳細取得
 
 **認証**: 必要
@@ -247,7 +247,7 @@ app.use('/api/v1/protected/*', authMiddleware);
 - returnDate: 必須、ISO 8601形式、departureDate以降
 - description: 任意、0-2000文字
 
-### PUT /api/v1/notes/\{id\}
+### PUT /api/v1/notes/`{id}`
 **概要**: ノート更新
 
 **認証**: 必要
@@ -257,9 +257,9 @@ app.use('/api/v1/protected/*', authMiddleware);
 
 **リクエスト**: POST /api/v1/notes と同じ形式
 
-**レスポンス**: GET /api/v1/notes/\{id\} と同じ形式
+**レスポンス**: GET /api/v1/notes/`{id}` と同じ形式
 
-### DELETE /api/v1/notes/\{id\}
+### DELETE /api/v1/notes/`{id}`
 **概要**: ノート削除
 
 **認証**: 必要
